@@ -7,7 +7,7 @@
 # Nov 24 13:46:51 eee-kubox sshd[7801]: Invalid user newsletter from 189.112.177.3
 # # # # # # # # # # #
 # 
-
+require 'file/tail'
 require 'thread'
 require 'cgi'
 
@@ -20,24 +20,24 @@ def sshd(line)
         if line[5] == "Failed"
 		if line[8] == "invalid"
 			log = "<b>#{line[5]}</b> : #{line[10]} -> #{line[12]}<br />"
-		#	puts log
+			puts log
 		else
 			log = "<b>#{line[5]}</b> : #{line[8]} -> #{line[10]}<br />"
-		#	puts log
+			puts log
 		end
 		#File.open("auth.html", 'a') {|f| f.write(log) } 
         elsif line[5] == "Accepted"
                 log = "<b>#{line[5]}</b> : #{line[8]} @ #{line[10]}<br />"
 		#File.open("auth.html", 'a') {|f| f.write(log) }
         end
-	File.open("auth.html", 'a') {|f| f.write(log) } if log != ""
+#	File.open("auth.html", 'a') {|f| f.write(log) } if log != ""
 end
 
 
 def httpd(line)
 	# Apache - Lighttpd
-	ip= line[0]
-	request = CGI.unescape(line[6])         #.gsub(/\//,"")
+	ip = line[0]
+	request = CGI.unescape(line[6])
 	if request =~ /.*(and|or).*(\s|\/\*\*\/).*[1-9A-z]|.*\'.*|.*select.*(\s|\/\*\*\/).*(from|).*[1-9A-z].*|.*insert.*(\s|\/\*\*\/).*into.*(\s|\/\*\*\/).*values.*/i
 		puts "SQL Injection Detected  ---->  #{request} from #{ip}"
 	elsif request =~ /(http(s|)\:\/\/|ftp\:\/\/)/
@@ -52,20 +52,20 @@ end
 
 
 sshd_thr = Thread.new {
-	IO.popen("tail -n 0 -f #{source_auth}"){ |f|
-  		while line = f.gets 
+	File::Tail::Logfile.open(source_auth) { |logf|
+        	logf.backward(0).tail { |line| 
     			hit = line.chomp.split(/\s+/)
         		sshd(hit) if hit[4] =~ /sshd\[/
-		end
+		}
 	}
 }
 
-
 httpd_thr = Thread.new {
-        IO.popen("tail -n 0 -f #{source_httpd}"){ |f|
-                while line = f.gets
+        File::Tail::Logfile.open(source_httpd) { |logf|
+                logf.backward(0).tail { |line|
                         hit = line.chomp.split(/\s+/)	
                         httpd(hit) if hit[5] =~ /\"GET/
-                end
+                }
         }
 }
+
