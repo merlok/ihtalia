@@ -11,8 +11,8 @@ require 'file/tail'
 require 'thread'
 require 'cgi'
 
-source_auth = "/var/log/auth.log"
-source_httpd = "/var/log/lighttpd/access.log"
+@source_auth = "/var/log/auth.log"
+@source_httpd = "/var/log/lighttpd/access.log"
 
 
 def sshd(line)
@@ -50,9 +50,8 @@ def httpd(line)
 end
 
 
-
 sshd_thr = Thread.new {
-	File::Tail::Logfile.open(source_auth) { |logf|
+	File::Tail::Logfile.open(@source_auth) { |logf|
         	logf.backward(0).tail { |line| 
     			hit = line.chomp.split(/\s+/)
         		sshd(hit) if hit[4] =~ /sshd\[/
@@ -61,7 +60,7 @@ sshd_thr = Thread.new {
 }
 
 httpd_thr = Thread.new {
-        File::Tail::Logfile.open(source_httpd) { |logf|
+        File::Tail::Logfile.open(@source_httpd) { |logf|
                 logf.backward(0).tail { |line|
                         hit = line.chomp.split(/\s+/)	
                         httpd(hit) if hit[5] =~ /\"GET/
@@ -69,3 +68,7 @@ httpd_thr = Thread.new {
         }
 }
 
+
+sshd_thr.join
+
+httpd_thr.join
